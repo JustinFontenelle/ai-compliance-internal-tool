@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Compliance Checklist Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      max-width: 900px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 15px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AI Compliance Checklist (Prototype)</h1>
+  <p>Paste a policy or procedure below to generate a standardized checklist.</p>
+
+  <textarea id="inputText" placeholder="Paste messy compliance or policy text here..."></textarea>
+  <br />
+  <button id="generateBtn">Generate Checklist</button>
+
+  <h2>Checklist Output</h2>
+  <pre id="output"></pre>
+    <script>
+  const button = document.getElementById('generateBtn');
+  const input = document.getElementById('inputText');
+  const output = document.getElementById('output');
+
+  button.addEventListener('click', async () => {
+    const text = input.value.trim();
+
+    if (!text) {
+      output.textContent = 'Please paste some policy text first.';
+      return;
+    }
+
+    output.textContent = "Generating checklist with AI...";
+
+    try {
+      const response = await fetch("http://localhost:3000/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+
+      const data = await response.json();
+      output.textContent = data.result;
+    } catch (err) {
+      output.textContent = "Error generating checklist.";
+      console.error(err);
+    }
+  });
+</script>
+</body>
+</html>
