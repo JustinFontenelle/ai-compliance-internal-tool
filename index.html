@@ -39,7 +39,9 @@
 
   <h2>Checklist Output</h2>
   <pre id="output"></pre>
-    <script>
+    <script type="module">
+  import { generateChecklist } from "./ai.js";
+
   const button = document.getElementById('generateBtn');
   const input = document.getElementById('inputText');
   const output = document.getElementById('output');
@@ -55,14 +57,8 @@
     output.textContent = "Generating checklist with AI...";
 
     try {
-      const response = await fetch("http://localhost:3000/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-
-      const data = await response.json();
-      output.textContent = data.result;
+      const result = await generateChecklist(text);
+      output.textContent = result;
     } catch (err) {
       output.textContent = "Error generating checklist.";
       console.error(err);
