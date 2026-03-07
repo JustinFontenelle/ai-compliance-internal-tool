@@ -1,3 +1,7 @@
+// ========================
+// API Request Function
+// ========================
+
 export async function generateChecklist(text) {
   const response = await fetch("http://localhost:3000/generate", {
     method: "POST",
@@ -13,5 +17,5 @@ export async function generateChecklist(text) {
     throw new Error(data.error || "Request failed");
   }
 
-  return data.message || data.result;
+  return data.result;
 }
