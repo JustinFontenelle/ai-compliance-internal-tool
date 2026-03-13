@@ -1,3 +1,9 @@
+// ========================
+// Utilities
+// ========================
+
+const { logRequestEvent } = require("../utils/requestEvents");
+
 
 // ========================
 // Import Modules
@@ -6,15 +12,28 @@
 const express = require("express");
 const router = express.Router();
 
+
+// ========================
 // Middleware
+// ========================
 
 const authorizeRequest = require("../middleware/authorizeRequest");
 const validateRequest = require("../middleware/validateRequest");
 
-// Processing
+
+// ========================
+// Services / Processing
+// ========================
 
 const processChecklist = require("../services/aiProcessing");
+
+
+// ========================
+// Response Utilities
+// ========================
+
 const { formatSuccess, formatError } = require("../utils/responseFormatter");
+
 
 // ========================
 // Route Handler
@@ -22,18 +41,34 @@ const { formatSuccess, formatError } = require("../utils/responseFormatter");
 
 router.post("/generate", authorizeRequest, validateRequest, async (req, res, next) => {
 
-  const result = await processChecklist(
-  req.body.text,
-  req.requestId,
-  req.clientIp
-);
+  // ========================
+  // Request Timeline Event
+  // ========================
 
-  res.json(formatSuccess(result));
+  logRequestEvent(req, "Generate checklist request received");
+
+
+  try {
+
+    const result = await processChecklist(
+      req.body.text,
+      req.requestId,
+      req.clientIp
+    );
+
+    res.json(formatSuccess(result));
+
+  } catch (error) {
+
+    next(error);
+
+  }
 
 });
 
+
 // ========================
-// Export the router
+// Export Router
 // ========================
 
 module.exports = router;
