@@ -38,7 +38,6 @@ function requestLogger(req, res, next) {
   // Response Completion 
   //==========================
   
-  // When response is finished
 
   res.on("finish", () => {
 
