@@ -13,6 +13,8 @@ const { OpenAI } = require("openai");
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+let activeRequests = 0;
+const MAX_CONCURRENT = 2;
 
 // ========================
 // AI Processing Function
@@ -20,7 +22,16 @@ const openai = new OpenAI({
 
 async function processChecklist(policyText, requestId, clientIp) {
 
-  // Audit Logging
+  // Wait if another request is being processed
+while (activeRequests >= MAX_CONCURRENT) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// immediate lock after waiting
+
+activeRequests++;
+
+// Audit Logging
   
   logAuditEvent(
     "AI_REQUEST_RECEIVED",
@@ -30,7 +41,6 @@ async function processChecklist(policyText, requestId, clientIp) {
   );
 
   const context = buildComplianceContext(policyText);
-
 let attempts = 0;
 const maxAttempts = 2;
 
@@ -80,6 +90,7 @@ Rules:
       throw new Error("AI output validation failed");
     }
 
+    activeRequests--;
     return output;
 
   } catch (error) {
@@ -87,8 +98,9 @@ Rules:
     attempts++;
 
     console.error(`Attempt ${attempts} failed:`, error.message);
-
+   
     if (attempts >= maxAttempts) {
+      activeRequests--;
       throw new Error("AI service failed after retries");
     }
   }
