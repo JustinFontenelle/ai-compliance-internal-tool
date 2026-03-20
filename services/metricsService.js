@@ -7,7 +7,8 @@ let metrics = {
   totalErrors: 0,
   totalLatency: 0,
   currentRequests: 0,
-  maxConcurrentRequests: 0
+  maxConcurrentRequests: 0,
+  retryCount: 0
 };
 
 // Service functions to update and retrieve metrics
@@ -50,6 +51,10 @@ function startRequest() {
 function finishRequest() {
   metrics.currentRequests--;
 }
+
+function incrementRetries() {
+  metrics.retryCount++;
+}
 // Export the service functions
 
 module.exports = {
@@ -58,5 +63,6 @@ module.exports = {
   recordLatency,
   startRequest,
   finishRequest,
-  getMetrics
+  getMetrics,
+  incrementRetries
 };

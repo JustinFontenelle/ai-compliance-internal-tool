@@ -2,9 +2,15 @@
 // Import Modules
 // ========================
 
+//internal services
 const buildComplianceContext = require("./complianceContextBuilder");
 const logAuditEvent = require("./auditLogger");
+
+//external libraries
 const { OpenAI } = require("openai");
+
+//internal utilities
+const { incrementRetries } = require("./metricsService");
 
 // ========================
 // Initialize OpenAI Client
@@ -96,6 +102,7 @@ Rules:
   } catch (error) {
 
     attempts++;
+    incrementRetries();
 
     console.error(`Attempt ${attempts} failed:`, error.message);
    
