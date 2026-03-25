@@ -59,10 +59,12 @@
     try {
       const result = await generateChecklist(text);
       output.textContent = result;
-    } catch (err) {
-      output.textContent = "Error generating checklist.";
-      console.error(err);
-    }
+    } 
+    
+    catch (err) {
+  output.textContent = err.message || "Unexpected error occurred.";
+  console.error(err);
+}
   });
 </script>
 </body>

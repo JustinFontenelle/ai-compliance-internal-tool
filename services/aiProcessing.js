@@ -30,6 +30,7 @@ async function processChecklist(policyText, requestId, clientIp) {
   
 
   // Wait if another request is being processed
+
 while (activeRequests >= MAX_CONCURRENT) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
@@ -55,13 +56,13 @@ activeRequests++;
 
   while (attempts < maxAttempts) {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        messages: [
-          {
-            role: "system",
-            content: `
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: `
 You are a compliance assistant.
 
 Convert the input policy into a checklist with EXACTLY these 4 sections:
@@ -78,38 +79,39 @@ Rules:
 - Each section must contain bullet checklist items
 - Keep wording clear and consistent
 `
-          },
-          {
-            role: "user",
-            content: JSON.stringify(context)
-          }
-        ]
-      });
-
-      const output = response.choices[0].message.content;
-
-      // Validation
-      if (
-        !output.includes("Storage Security") ||
-        !output.includes("Access Control") ||
-        !output.includes("Training Requirements") ||
-        !output.includes("Breach Reporting")
-      ) {
-        throw new Error("AI output validation failed");
+      },
+      {
+        role: "user",
+        content: JSON.stringify(context)
       }
+    ]
+  });
 
-      return output;
+  const output = response.choices[0].message.content;
 
-    } catch (error) {
-      attempts++;
-      incrementRetries();
+  // Validation
+  
+  if (
+    !output.includes("Storage Security") ||
+    !output.includes("Access Control") ||
+    !output.includes("Training Requirements") ||
+    !output.includes("Breach Reporting")
+  ) {
+    throw new Error("AI output validation failed");
+  }
 
-      console.error(`Attempt ${attempts} failed:`, error.message);
+  return output;
 
-      if (attempts >= maxAttempts) {
-        throw new Error("AI service failed after retries");
-      }
-    }
+} catch (error) {
+  attempts++;
+  incrementRetries();
+
+  console.error(`Attempt ${attempts} failed:`, error.message);
+
+  if (attempts >= maxAttempts) {
+    throw new Error("AI service failed after retries");
+  }
+}
   }
 
 } finally {

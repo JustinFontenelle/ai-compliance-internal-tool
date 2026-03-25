@@ -48,6 +48,7 @@ async function pollForCompletion(jobId, updateUI) {
     // Handle rate limiting by waiting before retrying
 
     if (response.status === 429) {
+      attempts++;
       await delay(4000); 
       continue;
     }
@@ -71,9 +72,10 @@ if (job.status === "processing") {
     }
 
     
-    if (job.status === "failed") {
-  throw new Error(job.error || "Job failed");
-  }
+  if (job.status === "failed") {
+    const errorMessage = job.error || "Job failed";
+    throw new Error(errorMessage);
+}
     attempts++;
     await delay(2000); 
   }

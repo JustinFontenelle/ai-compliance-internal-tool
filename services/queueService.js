@@ -2,6 +2,7 @@
 // In-Memory Job Queue
 // ========================
 const processChecklist = require("./aiProcessing");
+const JOB_TIMEOUT_MS = 10000; // 10 seconds timeout for AI processing
 const jobs = {};
 function generateJobId() {
   return Date.now().toString();
@@ -19,7 +20,8 @@ async function enqueueJob(data) {
     maxAttempts: 3,
     error: null,
     requestId: data.requestId,
-    progress: 'queued'
+    progress: 'queued',
+    createdAt: Date.now(),
   };
 
 console.log(`[JOB ${jobId}] [Request ${data.requestId}] Job created`);
@@ -37,25 +39,35 @@ async function processJob(jobId) {
   job.status = 'processing';
   job.progress = 'starting';
 
+  
   while (job.attempts < job.maxAttempts) {
+
+// Check for job timeout
+   
+// Increment attempt count and log the attempt
+
     try {
       job.attempts++;
-    console.log(`[JOB ${jobId}] [Request ${job.requestId}] Attempt ${job.attempts}`);
+  console.log(`[JOB ${jobId}] [Request ${job.requestId}] Attempt ${job.attempts}`);
       
     // Call the AI processing function
      
     job.progress = 'calling_ai';
-    const result = await processChecklist(
-        job.data.text,
-        job.data.requestId,
-        job.data.clientIp
-      );
+    const result = await Promise.race([
+  processChecklist(
+    job.data.text,
+    job.data.requestId,
+    job.data.clientIp
+  ),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Job timed out")), JOB_TIMEOUT_MS)
+  )
+]);
 
       // AI succeeded processing function
       
-      job.progress = 'formatting';
-      job.result = result;
       job.progress = 'completed'; 
+      job.result = result;
       job.status = 'completed';
 
 return;
@@ -65,7 +77,7 @@ return;
 // ===========================
 
     } catch (error) {
-      job.error = error.message;
+      job.error = `Attempt ${job.attempts}: ${error.message}`;
 console.log(`[JOB ${jobId}] [Request ${job.requestId}] Failed attempt ${job.attempts}: ${error.message}`);
      if (job.attempts >= job.maxAttempts) {
   console.log(`[JOB ${jobId}] [Request ${job.requestId}] Max attempts reached. Marking job as failed.`);
