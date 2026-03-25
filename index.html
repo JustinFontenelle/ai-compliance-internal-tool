@@ -40,11 +40,34 @@
   <h2>Checklist Output</h2>
   <pre id="output"></pre>
     <script type="module">
-  import { generateChecklist } from "./ai.js";
+
+      // Import the generateChecklist function from ai.js
+      
+  import { generateChecklist, generateChecklistFromJobId } from "./ai.js";
 
   const button = document.getElementById('generateBtn');
   const input = document.getElementById('inputText');
   const output = document.getElementById('output');
+
+  // resume job if jobId exists in local storage
+
+  const savedJobId = localStorage.getItem("jobId");
+
+if (savedJobId) {
+  output.textContent = "Resuming previous job...";
+
+  generateChecklistFromJobId(savedJobId)
+    .then(result => {
+      output.textContent = result;
+      localStorage.removeItem("jobId");
+    })
+    .catch(err => {
+      output.textContent = err.message || "Error resuming job";
+      localStorage.removeItem("jobId");
+    });
+}
+
+// button click handler to generate checklist
 
   button.addEventListener('click', async () => {
     const text = input.value.trim();

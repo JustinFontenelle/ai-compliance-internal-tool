@@ -22,10 +22,16 @@ export async function generateChecklist(text) {
   if (!response.ok) {
     throw new Error(data.error || "Request failed");
   }
+//=======================
+// Store Job ID in Local Storage
+// ========================
 
   const { jobId } = data;
+localStorage.setItem("jobId", jobId);
 
-  // Poll Until Job Completes
+// ========================
+// Poll Until Job Completes
+// ========================
   
   return await pollForCompletion(jobId, (message) => {
   const output = document.getElementById("output");
@@ -33,6 +39,16 @@ export async function generateChecklist(text) {
 });
 }
 
+// ========================
+// Resume Existing Job
+// ========================
+
+export async function generateChecklistFromJobId(jobId) {
+  return await pollForCompletion(jobId, (message) => {
+    const output = document.getElementById("output");
+    output.textContent = message;
+  });
+}
 
 // ========================
 // Polling Function to Check Job Status
@@ -68,11 +84,13 @@ if (job.status === "processing") {
 }
 
     if (job.status === "completed") {
+      localStorage.removeItem("jobId"); 
       return job.result;
     }
 
     
   if (job.status === "failed") {
+    localStorage.removeItem("jobId");
     const errorMessage = job.error || "Job failed";
     throw new Error(errorMessage);
 }
