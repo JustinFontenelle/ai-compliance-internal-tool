@@ -49,7 +49,7 @@ function requestLogger(req, res, next) {
     });
   };
 
-  // listen for response finish or close events
+  //finish or close events
   res.on("finish", done);
   res.on("close", done);
 
