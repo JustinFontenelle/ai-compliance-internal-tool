@@ -116,7 +116,7 @@ it("should handle multiple rapid status checks correctly", async () => {
 
   const jobId = createRes.body.jobId;
 
-  // Fire multiple requests quickly
+  // Firing multiple requests quickly
   const responses = await Promise.all([
     request(app).get(`/status/${jobId}`),
     request(app).get(`/status/${jobId}`),
@@ -137,7 +137,7 @@ it("should not return completed too early", async () => {
 
   const jobId = createRes.body.jobId;
 
-  // Wait LESS than completion time
+  // Wait (less) than completion time
   await new Promise(resolve => setTimeout(resolve, 50));
 
   const res = await request(app).get(`/status/${jobId}`);
@@ -155,7 +155,7 @@ it("should handle repeated polling until completion", async () => {
 
   let finalStatus = null;
 
-  // Simulate polling loop (like frontend)
+  // Simulate polling loop 
   for (let i = 0; i < 5; i++) {
     const res = await request(app).get(`/status/${jobId}`);
 
@@ -171,4 +171,143 @@ it("should handle repeated polling until completion", async () => {
   expect(finalStatus).not.toBeNull();
   expect(finalStatus.status).toBe("completed");
   expect(finalStatus.result).toBe("Mock checklist result");
+});
+it("should handle job failure correctly", async () => {
+  // Override mock behavior for this test to simulate failure
+  const queueService = require("../services/queueService");
+
+  queueService.enqueueJob.mockImplementationOnce(async () => {
+    const jobId = "job-fail";
+
+    queueService.getJob.mockImplementation((id) => {
+      if (id === jobId) {
+        return {
+          status: "failed",
+          progress: "failed",
+          attempts: 3,
+          maxAttempts: 3,
+          result: null,
+          error: "AI processing failed"
+        };
+      }
+    });
+
+    return jobId;
+  });
+
+  const createRes = await request(app)
+    .post("/generate")
+    .set("x-api-key", "test-key")
+    .send({ text: "Bad input" });
+
+  const jobId = createRes.body.jobId;
+
+  const statusRes = await request(app)
+    .get(`/status/${jobId}`);
+
+  expect(statusRes.statusCode).toBe(200);
+  expect(statusRes.body.status).toBe("failed");
+  expect(statusRes.body.error).toBe("AI processing failed");
+});
+it("should reflect retry attempts before failing", async () => {
+  const queueService = require("../services/queueService");
+
+  let attemptCount = 0;
+
+  queueService.enqueueJob.mockImplementationOnce(async () => {
+    const jobId = "job-retry";
+
+    queueService.getJob.mockImplementation((id) => {
+      if (id === jobId) {
+        attemptCount++;
+
+        if (attemptCount < 3) {
+          return {
+            status: "processing",
+            progress: "calling_ai",
+            attempts: attemptCount,
+            maxAttempts: 3,
+            result: null,
+            error: null
+          };
+        }
+
+        return {
+          status: "failed",
+          progress: "failed",
+          attempts: 3,
+          maxAttempts: 3,
+          result: null,
+          error: "Max retries reached"
+        };
+      }
+    });
+
+    return jobId;
+  });
+
+  const createRes = await request(app)
+    .post("/generate")
+    .set("x-api-key", "test-key")
+    .send({ text: "Retry scenario" });
+
+  const jobId = createRes.body.jobId;
+
+  // First check
+  const res1 = await request(app).get(`/status/${jobId}`);
+  expect(res1.body.status).toBe("processing");
+  expect(res1.body.attempts).toBe(1);
+
+  // Second check
+  const res2 = await request(app).get(`/status/${jobId}`);
+  expect(res2.body.status).toBe("processing");
+  expect(res2.body.attempts).toBe(2);
+
+  // Third check (failure)
+  const res3 = await request(app).get(`/status/${jobId}`);
+  expect(res3.body.status).toBe("failed");
+  expect(res3.body.attempts).toBe(3);
+  expect(res3.body.error).toBe("Max retries reached");
+});
+it("should handle a job that never completes (stuck processing)", async () => {
+  const queueService = require("../services/queueService");
+
+  queueService.enqueueJob.mockImplementationOnce(async () => {
+    const jobId = "job-stuck";
+
+    queueService.getJob.mockImplementation((id) => {
+      if (id === jobId) {
+        return {
+          status: "processing",
+          progress: "calling_ai",
+          attempts: 2,
+          maxAttempts: 3,
+          result: null,
+          error: null
+        };
+      }
+    });
+
+    return jobId;
+  });
+
+  const createRes = await request(app)
+    .post("/generate")
+    .set("x-api-key", "test-key")
+    .send({ text: "Stuck scenario" });
+
+  const jobId = createRes.body.jobId;
+
+  // Poll multiple times
+  const responses = [];
+
+  for (let i = 0; i < 3; i++) {
+    const res = await request(app).get(`/status/${jobId}`);
+    responses.push(res.body.status);
+  }
+
+  // reinforce  processing
+  responses.forEach(status => {
+    expect(status).toBe("processing");
+  });
 });
