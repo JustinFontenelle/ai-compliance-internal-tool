@@ -1,19 +1,17 @@
-function log(level, message, meta = {}) {
-
+function log(level, event, meta = {}) {
   const logEntry = {
     level,
-    message,
+    event,
     service: "ai-compliance-tool",
     timestamp: new Date().toISOString(),
     ...meta
   };
 
   console.log(JSON.stringify(logEntry));
-
 }
 
 module.exports = {
-  info: (message, meta) => log("info", message, meta),
-  warn: (message, meta) => log("warn", message, meta),
-  error: (message, meta) => log("error", message, meta)
+  info: (event, meta) => log("info", event, meta),
+  warn: (event, meta) => log("warn", event, meta),
+  error: (event, meta) => log("error", event, meta)
 };

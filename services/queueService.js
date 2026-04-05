@@ -1,6 +1,10 @@
-//=========================
-// In-Memory Job Queue
-// ========================
+// services/queueService.js
+
+const logger = require("../utils/logger");
+
+// =========================
+// In Memory Job Queue
+// =========================
 
 const {
   incrementRequests,
@@ -12,6 +16,7 @@ const {
 const processChecklist = require("./aiProcessing");
 
 const JOB_TIMEOUT_MS = 10000; // 10 seconds timeout for AI processing
+const MAX_JOB_DURATION_MS = 15000; // 15 seconds max total job time
 
 const jobs = {};
 
@@ -28,25 +33,27 @@ async function enqueueJob(data) {
 
   incrementRequests();
 
-console.log("START REQUEST");
-
-
-// Create a new job entry
+  // Creating new job entry
   jobs[jobId] = {
-    status: 'pending',
+    status: "pending",
     data,
     result: null,
     attempts: 0,
     maxAttempts: 3,
     error: null,
     requestId: data.requestId,
-    progress: 'queued',
-    createdAt: Date.now(),
+    progress: "queued",
+    createdAt: Date.now()
   };
 
-  console.log(`[JOB ${jobId}] [Request ${data.requestId}] Job created`);
+  logger.info("JOB_CREATED", {
+    requestId: data.requestId,
+    jobId,
+    attempts: 0,
+    maxAttempts: 3
+  });
 
-  processJob(jobId);
+  processJob(jobId); 
 
   return jobId;
 }
@@ -58,16 +65,44 @@ console.log("START REQUEST");
 async function processJob(jobId) {
   const job = jobs[jobId];
 
-  job.status = 'processing';
-  job.progress = 'starting';
+  job.status = "processing";
+  job.progress = "starting";
+  job.startedAt = Date.now();
 
+  logger.info("JOB_STARTED", {
+    requestId: job.requestId,
+    jobId
+  });
+// 🚨 STUCK JOB DETECTION
+const now = Date.now();
+const duration = now - job.startedAt;
+
+if (duration > MAX_JOB_DURATION_MS) {
+  job.status = "failed";
+  job.progress = "stuck";
+
+  logger.error("JOB_STUCK_DETECTED", {
+    requestId: job.requestId,
+    jobId,
+    duration,
+    attempts: job.attempts
+  });
+
+  incrementErrors();
+
+  return;
+}
   while (job.attempts < job.maxAttempts) {
     try {
       job.attempts++;
 
-      console.log(`[JOB ${jobId}] [Request ${job.requestId}] Attempt ${job.attempts}`);
+      logger.info("JOB_ATTEMPT", {
+        requestId: job.requestId,
+        jobId,
+        attempt: job.attempts
+      });
 
-      job.progress = 'calling_ai';
+      job.progress = "calling_ai";
 
       const result = await Promise.race([
         processChecklist(
@@ -84,15 +119,19 @@ async function processJob(jobId) {
       // SUCCESS
       // ============================
 
-      job.progress = 'completed';
+      job.progress = "completed";
       job.result = result;
-      job.status = 'completed';
+      job.status = "completed";
 
-      console.log("FINISH REQUEST (SUCCESS)");
-     
+      logger.info("JOB_SUCCESS", {
+        requestId: job.requestId,
+        jobId,
+        attempts: job.attempts,
+        resultLength: result?.length || 0
+      });
 
       return;
-     
+
       // ============================
       // FAILURE
       // ============================
@@ -100,26 +139,32 @@ async function processJob(jobId) {
     } catch (error) {
       job.error = `Attempt ${job.attempts}: ${error.message}`;
 
-      console.log(
-        `[JOB ${jobId}] [Request ${job.requestId}] Failed attempt ${job.attempts}: ${error.message}`
-      );
+      logger.error("JOB_FAILED_ATTEMPT", {
+        requestId: job.requestId,
+        jobId,
+        attempt: job.attempts,
+        error: error.message
+      });
 
       // ============================
       // FINAL FAILURE
       // ============================
 
       if (job.attempts >= job.maxAttempts) {
-  console.log(`[JOB ${jobId}] Max attempts reached`);
+        job.progress = "failed";
+        job.status = "failed";
 
-  job.progress = 'failed';
-  job.status = 'failed';
+        logger.error("JOB_FAILED_FINAL", {
+          requestId: job.requestId,
+          jobId,
+          attempts: job.attempts,
+          error: job.error
+        });
 
-    console.log("FINISH REQUEST (FAILURE)");
-  incrementErrors();
-  
+        incrementErrors();
 
-  return;
-}
+        return;
+      }
 
       // ============================
       // RETRY DELAY
@@ -143,7 +188,7 @@ function getJob(jobId) {
 // ==========================
 
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ========================
