@@ -2,21 +2,18 @@
 
 const logger = require("../utils/logger");
 
-// =========================
-// In Memory Job Queue
-// =========================
-
 const {
   incrementRequests,
-  startRequest,
-  finishRequest,
-  incrementErrors
+  incrementErrors,
+  recordFailure,
+  getFailureCount,
+  resetFailures
 } = require("./metricsService");
 
 const processChecklist = require("./aiProcessing");
 
-const JOB_TIMEOUT_MS = 10000; // 10 seconds timeout for AI processing
-const MAX_JOB_DURATION_MS = 15000; // 15 seconds max total job time
+const JOB_TIMEOUT_MS = 10000;
+const MAX_JOB_DURATION_MS = 15000;
 
 const jobs = {};
 
@@ -33,7 +30,6 @@ async function enqueueJob(data) {
 
   incrementRequests();
 
-  // Creating new job entry
   jobs[jobId] = {
     status: "pending",
     data,
@@ -53,13 +49,13 @@ async function enqueueJob(data) {
     maxAttempts: 3
   });
 
-  processJob(jobId); 
+  processJob(jobId);
 
   return jobId;
 }
 
 // ============================
-// Process a job asynchronously
+// asynchronous job processing
 // ============================
 
 async function processJob(jobId) {
@@ -73,26 +69,36 @@ async function processJob(jobId) {
     requestId: job.requestId,
     jobId
   });
-// 🚨 STUCK JOB DETECTION
-const now = Date.now();
-const duration = now - job.startedAt;
 
-if (duration > MAX_JOB_DURATION_MS) {
-  job.status = "failed";
-  job.progress = "stuck";
-
-  logger.error("JOB_STUCK_DETECTED", {
-    requestId: job.requestId,
-    jobId,
-    duration,
-    attempts: job.attempts
-  });
-
-  incrementErrors();
-
-  return;
-}
   while (job.attempts < job.maxAttempts) {
+
+    // Stuck job detection
+
+    const duration = Date.now() - job.startedAt;
+
+    if (duration > MAX_JOB_DURATION_MS) {
+      job.status = "failed";
+      job.progress = "stuck";
+
+      logger.error("JOB_STUCK_DETECTED", {
+        requestId: job.requestId,
+        jobId,
+        duration,
+        attempts: job.attempts
+      });
+
+      incrementErrors();
+      recordFailure();
+
+      if (getFailureCount() >= 3) {
+        logger.error("SYSTEM_ALERT_HIGH_FAILURE_RATE", {
+          failureCount: getFailureCount()
+        });
+      }
+
+      return;
+    }
+
     try {
       job.attempts++;
 
@@ -115,9 +121,7 @@ if (duration > MAX_JOB_DURATION_MS) {
         )
       ]);
 
-      // ============================
-      // SUCCESS
-      // ============================
+      // success validation
 
       job.progress = "completed";
       job.result = result;
@@ -130,11 +134,11 @@ if (duration > MAX_JOB_DURATION_MS) {
         resultLength: result?.length || 0
       });
 
-      return;
+      // Reset failure count on success
 
-      // ============================
-      // FAILURE
-      // ============================
+      resetFailures();
+
+      return;
 
     } catch (error) {
       job.error = `Attempt ${job.attempts}: ${error.message}`;
@@ -145,10 +149,6 @@ if (duration > MAX_JOB_DURATION_MS) {
         attempt: job.attempts,
         error: error.message
       });
-
-      // ============================
-      // FINAL FAILURE
-      // ============================
 
       if (job.attempts >= job.maxAttempts) {
         job.progress = "failed";
@@ -162,13 +162,16 @@ if (duration > MAX_JOB_DURATION_MS) {
         });
 
         incrementErrors();
+        recordFailure();
+
+        if (getFailureCount() >= 3) {
+          logger.error("SYSTEM_ALERT_HIGH_FAILURE_RATE", {
+            failureCount: getFailureCount()
+          });
+        }
 
         return;
       }
-
-      // ============================
-      // RETRY DELAY
-      // ============================
 
       await delay(2000);
     }
@@ -176,7 +179,7 @@ if (duration > MAX_JOB_DURATION_MS) {
 }
 
 // ==========================
-// Get job status and result
+// Get job status
 // ==========================
 
 function getJob(jobId) {
@@ -188,7 +191,7 @@ function getJob(jobId) {
 // ==========================
 
 function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ========================

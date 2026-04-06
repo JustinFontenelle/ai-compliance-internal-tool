@@ -1,17 +1,20 @@
-//=========================
+// =========================
 // Metrics Service
-//=========================
+// =========================
 
-let metrics = {
+const metrics = {
   totalRequests: 0,
   totalErrors: 0,
   totalLatency: 0,
   currentRequests: 0,
   maxConcurrentRequests: 0,
-  retryCount: 0
+  retryCount: 0,
+  recentFailures: 0
 };
 
-// Service functions to update and retrieve metrics
+// =========================
+// Request Metrics
+// =========================
 
 function incrementRequests() {
   metrics.totalRequests++;
@@ -21,8 +24,53 @@ function incrementErrors() {
   metrics.totalErrors++;
 }
 
-function getMetrics() {
+function recordLatency(duration) {
+  metrics.totalLatency += duration;
+}
 
+function startRequest() {
+  metrics.currentRequests++;
+
+  if (metrics.currentRequests > metrics.maxConcurrentRequests) {
+    metrics.maxConcurrentRequests = metrics.currentRequests;
+  }
+}
+
+function finishRequest() {
+  if (metrics.currentRequests > 0) {
+    metrics.currentRequests--;
+  }
+}
+
+// =========================
+// Retry Metrics
+// =========================
+
+function incrementRetries() {
+  metrics.retryCount++;
+}
+
+// =========================
+// Failure Monitoring
+// =========================
+
+function recordFailure() {
+  metrics.recentFailures++;
+}
+
+function resetFailures() {
+  metrics.recentFailures = 0;
+}
+
+function getFailureCount() {
+  return metrics.recentFailures;
+}
+
+// =========================
+// Metrics Snapshot
+// =========================
+
+function getMetrics() {
   const averageLatency =
     metrics.totalRequests > 0
       ? metrics.totalLatency / metrics.totalRequests
@@ -32,32 +80,11 @@ function getMetrics() {
     ...metrics,
     averageLatency
   };
-
 }
 
-function recordLatency(duration) {
-  metrics.totalLatency += duration;
-}
-function startRequest() {
-
-  metrics.currentRequests++;
-
-  if (metrics.currentRequests > metrics.maxConcurrentRequests) {
-    metrics.maxConcurrentRequests = metrics.currentRequests;
-  }
-
-}
-
-function finishRequest() {
-  if (metrics.currentRequests > 0) {
-    metrics.currentRequests--;
-  }
-}
-
-function incrementRetries() {
-  metrics.retryCount++;
-}
-// Export the service functions
+// =========================
+// Export
+// =========================
 
 module.exports = {
   incrementRequests,
@@ -65,6 +92,9 @@ module.exports = {
   recordLatency,
   startRequest,
   finishRequest,
-  getMetrics,
-  incrementRetries
+  incrementRetries,
+  recordFailure,
+  resetFailures,
+  getFailureCount,
+  getMetrics
 };
