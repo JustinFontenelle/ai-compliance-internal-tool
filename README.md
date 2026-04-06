@@ -248,6 +248,6 @@ Response:
 
 ## Roadmap
 
-- [ ] Redis-backed queue (replacing current in-memory implementation)
+- [ ] Redis-backed queue (replacing current in memory implementation)
 - [ ] Queue persistence and recovery across restarts
 - [ ] Frontend interface for document submission and result display
