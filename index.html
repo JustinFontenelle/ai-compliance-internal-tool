@@ -20,25 +20,32 @@
       font-size: 16px;
       cursor: pointer;
     }
-    pre {
-      background: #f4f4f4;
-      padding: 15px;
-      margin-top: 20px;
-      white-space: pre-wrap;
-    }
+    
   </style>
 </head>
 <body>
 
-  <h1>AI Compliance Checklist (Prototype)</h1>
-  <p>Paste a policy or procedure below to generate a standardized checklist.</p>
+  <h1>AI-Assisted Compliance Documentation System</h1>
+  <p>Paste a compliance policy or internal procedure to generate a structured checklist.</p>
 
   <textarea id="inputText" placeholder="Paste messy compliance or policy text here..."></textarea>
   <br />
-  <button id="generateBtn">Generate Checklist</button>
+  <button id="generateBtn">Generate Compliance Checklist</button>
 
-  <h2>Checklist Output</h2>
-  <pre id="output"></pre>
+  <h3 style="margin-bottom: 8px; font-weight: 600;">
+  Compliance Checklist
+</h3>
+  <div id="output" style="
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 10px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border: 1px solid #e5e7eb;
+  min-height: 120px;
+"></div>
     <script type="module">
 
       // Import the generateChecklist function from ai.js
@@ -69,26 +76,31 @@ if (savedJobId) {
 
 // button click handler to generate checklist
 
-  button.addEventListener('click', async () => {
-    const text = input.value.trim();
+ button.addEventListener('click', async () => {
+  const text = input.value.trim();
 
-    if (!text) {
-      output.textContent = 'Please paste some policy text first.';
-      return;
-    }
+  if (!text) {
+    output.textContent = 'Please paste some policy text first.';
+    return;
+  }
 
-    output.textContent = "Generating checklist with AI...";
+  output.textContent = "Processing policy...";
+  button.disabled = true;
+  button.textContent = "Processing...";
 
-    try {
-      const result = await generateChecklist(text);
-      output.textContent = result;
-    } 
-    
-    catch (err) {
-  output.textContent = err.message || "Unexpected error occurred.";
-  console.error(err);
-}
-  });
+  try {
+    const result = await generateChecklist(text);
+    output.textContent = result;
+  } 
+  catch (err) {
+    output.textContent = err.message || "Unexpected error occurred.";
+    console.error(err);
+  } 
+  finally {
+    button.disabled = false;
+    button.textContent = "Generate Compliance Checklist";
+  }
+});
 </script>
 </body>
 </html>

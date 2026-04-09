@@ -105,9 +105,16 @@ async function pollForCompletion(jobId, updateUI) {
     // ========================
 
     if (job.status === "completed") {
-      localStorage.removeItem("jobId");
-      return job.result;
-    }
+  localStorage.removeItem("jobId");
+
+  const formatted = formatChecklist(job.result);
+
+  if (updateUI) {
+    updateUI(formatted);
+  }
+
+  return formatted;
+}
 
     // ========================
     // Failed State
@@ -151,4 +158,15 @@ function formatProgress(p) {
     case "failed": return "Failed";
     default: return p;
   }
+}
+
+// ========================
+// Utility: Format Checklist Output
+// ========================
+
+function formatChecklist(text) {
+  return text
+    .replace(/###\s*/g, '')     // removing ###
+    .replace(/^- /gm, '• ')     // replacing dash with bullet
+    .trim();
 }
